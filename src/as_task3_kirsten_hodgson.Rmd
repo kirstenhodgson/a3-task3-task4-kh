@@ -12,6 +12,7 @@ library(tidyverse)
 library(janitor)
 library(lubridate)
 library(here)
+library(kableExtra)
 
 urchins <- read.csv(here("data","urchins.csv"))
 
@@ -36,6 +37,62 @@ ggplot(data = urchins_clean, aes(x = size)) +
 ```{r, echo = TRUE, message = FALSE, warning = FALSE}
 ggplot(data = urchins_clean, aes(x = common_name, y = size)) +
   geom_boxplot() + #Creates boxplot with common name on x-axis and size on y-axis
-  labs(x = "Urchin Species", y = "Urchin size (cm)") #Labels axes
+  labs(x = "Urchin Species", y = "Urchin diameter (cm)") #Labels axes
+```
+
+#### Descriptive statistics
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+urchins_summary <- urchins_clean %>% 
+  group_by(common_name) %>% #Tell R to group by common name and then...
+  summarize(mean_size = mean(size), #Find the mean for the two different common names...
+            median_size = median(size), #The median...
+            standard_dev = sd(size), #The standard deviation...
+            sample_size = n()) 
+
+kbl(urchins_summary,digits = 2, col.names = c("Common Name", #Round decimal digits to 2 and...
+                                              "Mean Diameter (cm)", #Rename columns
+                                              "Median Diameter (cm)", 
+                                              "Standard Deviation", 
+                                              "Sample Size")) %>%  
+  kable_styling()
+  
+```
+
+From the exploratory graphs and the summary statistics, the mean diameter of red urchins is larger than the mean diameter of purple urchins. The actual difference in mean diameter is 2.307 cm, which is a 41% difference compared to the average of the two means (which is 5.623). The red urchin population also has a larger median diameter (actual difference = 2.5 cm), and a higher standard deviation - so higher spread. The histograms both appear more or less normally distributed, though the purple urchin distribution does appear more positively skewed than the red urchin distribution.
+
+## Purple urchins by site and year
+
+#### Data wrangling
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+purple_urchins <- urchins_clean %>% 
+  filter(common_name == "Purple Urchin") %>% #Keep only observation for purple urchins
+  mutate(date_new = mdy(date), .keep = "unused") %>% #Make a new date column with class = Date
+  mutate(year_new = year(date_new)) %>% #Add the year column
+  mutate(site_full = case_when( 
+    site == "NAPL" ~ "Naples Reef",
+    site == "AQUE" ~ "Arroyo Quemado Reef",
+    site == "CARP" ~ "Carpinteria Reef",
+    site == "MOHK" ~ "Mohawk Reef",
+    site == "IVEE" ~ "Isla Vista Reef")) #Add a column with entries depending on site
+```
+
+#### Summary table and exploratory graph
+
+1. Summary table
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+urchins_site_year <- purple_urchins %>% 
+  count(site_full, year_new) #Count purple urchin observations by site and year
+```
+
+2. Exploratory graph
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+ggplot(data = urchins_site_year, aes(x = year_new, y =n)) + #Create graph of urchin count by year
+  geom_col() + #As a column chart
+  facet_wrap(~site_full) + #Faceted by site
+  labs(x = "Year", y = "Count of purple urchins")
 ```
 
