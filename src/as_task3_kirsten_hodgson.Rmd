@@ -1,0 +1,41 @@
+---
+title: "Assignment 3 Task 3"
+author: "Kirsten Hodgson"
+date: "11/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(here)
+
+urchins <- read.csv(here("data","urchins.csv"))
+
+urchins_clean <- urchins %>% clean_names()
+```
+
+## Size comparisons of purple and red urchins
+
+#### Exploratory data visualization
+
+1. Faceted histogram:
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+ggplot(data = urchins_clean, aes(x = size)) + 
+  geom_histogram(bins = 15) + #Create histogram of urchin size with 15 bins
+  facet_wrap(~common_name) + #Facet so can clearly see histogram for both common names
+  labs(x = "Urchin diameter (cm)", y = "Urchin count") #Add labels to axes
+```
+
+2. Box plot
+
+```{r, echo = TRUE, message = FALSE, warning = FALSE}
+ggplot(data = urchins_clean, aes(x = common_name, y = size)) +
+  geom_boxplot() + #Creates boxplot with common name on x-axis and size on y-axis
+  labs(x = "Urchin Species", y = "Urchin size (cm)") #Labels axes
+```
+
