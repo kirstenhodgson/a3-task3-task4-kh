@@ -7,4 +7,100 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+
+urchins <- read_csv(here("data","urchins.csv"))
 ```
+## Data wrangling
+
+1. Clean column names, change date class, and create new columns to aid in filtering
+
+```{r}
+urchins_clean_month_year <- urchins %>% 
+  clean_names() %>% #Clean column names
+  mutate(date_new = mdy(date), .keep = "unused") %>% #Make new date column (class Date) and remove old
+  mutate(year_new = year(date_new)) %>% #Create new year column
+  mutate(month_new = month(date_new)) #Create new month column
+```
+
+2. Use filter() to wrangle data to include only Naples Reef observations for purple urchins observed in January 2010.
+
+```{r}
+urchins_napl_jan_2010 <- urchins_clean_month_year %>% 
+  filter(site == "NAPL") %>% #Keep only observations from Naples Reef...
+  filter(common_name == "Purple Urchin") %>% #...of Purple Urchins...
+  filter(year_new == "2010") %>% #...Made in 2010...
+  filter(month_new == "1") #...In January
+```
+
+## Exploratory visualizations
+
+#### Histogram
+
+Create a histogram showing count of size of purple urchin for both treatments.
+
+```{r}
+urchins_napl_jan_2010 %>% 
+  ggplot(aes(x = size)) +
+  geom_histogram(bins = 12) + #Create a histogram with 12 bins
+  facet_wrap(~treatment) + #Faceted by treatment
+  labs(x = "Urchin diameter (cm)", y = "Count") #With axis labels
+```
+
+From the histograms, both treatments appear to be somewhat normally distributed, but also potentially bimodal because both have two sizes that are high points for the histogram, and an intermediate low point between the two sizes. A QQ-plot will help to clarify whether this is likely or if they are in fact more normally distributed.
+
+#### QQ-plot
+
+Make a QQ-plot for each treatment to help determine how closely to normal the sample of Purple urchin size was distributed at Naples Reef in January 2010.
+
+```{r}
+urchins_napl_jan_2010 %>% 
+  ggplot(aes(sample = size)) +
+  geom_qq() + #Create a QQ-plot of size
+  facet_wrap(~treatment) #Faceted by treatment
+```
+
+From the QQ-plots, both treatments are clearly not perfectly normally distributed, but they follow the general trend so depending on summary statistics using a t-test may be permissible.
+
+## Descriptive statistics
+
+```{r}
+urchin_stats <- urchins_napl_jan_2010 %>%
+  group_by(treatment) %>% #Create a new subset grouped by treatment...
+  summarize(mean_size = mean(size), #...And summary table of mean,...
+            median_size = median(size), #...median,...
+            sd_size = sd(size), #...standard deviation...
+            sample_size = n()) #...and sample size
+
+urchin_stats #Call summary table
+```
+
+Because of the sample size and the appearance of close to normal distribution from the QQ-plot and histogram, a t-test is permissible.
+
+## Two sample t-test
+
+1. Split the Naples Reef January 2010 sample into two treatment groups and pull sample vectors.
+
+```{r}
+annual_urchins_sample <- urchins_napl_jan_2010 %>% #Create subset for annual treatment
+  filter(treatment == "ANNUAL") %>% #Containing only observations from the annual treatment
+  pull("size") #And pull size values into a vector
+
+control_urchins_sample <- urchins_napl_jan_2010 %>% #Create subset for control treatment
+  filter(treatment == "CONTROL") %>% #Containing only control observations
+  pull("size") #And pull size values into a vector
+```
+
+2. Run a two-sample t-test with the control and the annual vectors as inputs
+
+```{r}
+t.test(control_urchins_sample, annual_urchins_sample)
+```
+
+The mean diameter of the purple urchins from Naples Reef in January 2010 that were under the control treatment was 3.73 cm, and the mean diameter of the purple urchins from the same time and location under the annual treatment was 3.92 cm. This is an actual difference of 0.19 cm. The standard deviations for the control and annual treatments are 0.87 cm and 0.97 cm, respectively, and the actual mean difference is well lower than either standard deviation, so both means are within one standard deviation of each other. Additionally, a p-value of 0.2536 indicates that there is a decent chance that we could have gotten means at least this different (0.19 cm) from each other from random samples taken from populations with the same mean.
+
+The p-value of 0.2536 means that there is a 25.36% probability that, through random sampling, we could have gotten two sample means that are at least this different if we were sampling from populations with the same mean.
